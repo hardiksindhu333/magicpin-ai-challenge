@@ -40,11 +40,27 @@ export class DecisionService {
     }
     async handleReply(conversation_id, merchant_id, customer_id, from_role, message) {
         const lower = message.toLowerCase();
-        if (lower.includes('stop') || lower.includes('not interested') || lower.includes('no thanks')) {
-            return { action: 'end', rationale: 'Merchant explicitly opted out.' };
+        if (lower.includes('stop') || lower.includes('not interested') || lower.includes('no thanks') || lower.includes('unsubscribe')) {
+            return { action: 'end', rationale: 'Merchant explicitly opted out. Closing the conversation gracefully.' };
         }
-        if (lower.includes('thank you') || lower.includes('auto-reply')) {
-            return { action: 'wait', wait_seconds: 14400, rationale: 'Detected an auto-reply pattern and backed off to avoid spam.' };
+        if (lower.includes('thank you for contacting') || lower.includes('team will respond shortly') || lower.includes('auto-reply')) {
+            return { action: 'wait', wait_seconds: 14400, rationale: 'Detected a canned auto-reply and backed off to avoid wasting a turn.' };
+        }
+        if (lower.includes('let\'s do it') || lower.includes('yes please') || lower.includes('ok let\'s') || lower.includes('confirm')) {
+            return {
+                action: 'send',
+                body: `Great. I will move from qualification to the next practical step for ${merchant_id} and keep the follow-up concrete.`,
+                cta: 'binary_yes_no',
+                rationale: 'Merchant explicitly committed, so the bot advances the conversation instead of asking another qualification question.'
+            };
+        }
+        if (lower.includes('gst') || lower.includes('tax') || lower.includes('ca')) {
+            return {
+                action: 'send',
+                body: `I can help keep this focused on the current offer and next step. For GST or tax questions, it is better to loop in your accountant or bookkeeper.`,
+                cta: 'open_ended',
+                rationale: 'Acknowledged an off-topic request and redirected the conversation back to the original goal.'
+            };
         }
         return {
             action: 'send',
