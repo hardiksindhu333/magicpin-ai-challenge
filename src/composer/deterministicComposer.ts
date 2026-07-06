@@ -8,30 +8,69 @@ export interface ComposeResult {
   rationale: string;
 }
 
-export function compose(category: ContextRecord | undefined, merchant: ContextRecord | undefined, trigger: ContextRecord | undefined, customer?: ContextRecord): ComposeResult {
-  const merchantPayload = merchant?.payload as Record<string, unknown> | undefined;
-  const merchantId = typeof merchantPayload?.merchant_id === 'string' ? merchantPayload.merchant_id : 'merchant';
-  const merchantName = typeof (merchantPayload as any)?.identity?.name === 'string' ? (merchantPayload as any).identity.name : merchantId;
-  const locality = typeof (merchantPayload as any)?.identity?.locality === 'string' ? (merchantPayload as any).identity.locality : 'your area';
-  const city = typeof (merchantPayload as any)?.identity?.city === 'string' ? (merchantPayload as any).identity.city : 'your city';
-  const categorySlug = typeof (category?.payload as any)?.slug === 'string' ? (category?.payload as any).slug : 'general';
-  const categoryName = categorySlug === 'dentists' ? 'dentistry' : categorySlug === 'salons' ? 'salon services' : categorySlug === 'restaurants' ? 'restaurant growth' : categorySlug === 'gyms' ? 'gym growth' : categorySlug === 'pharmacies' ? 'pharmacy outreach' : categorySlug;
-  const triggerPayload = trigger?.payload as Record<string, unknown> | undefined;
-  const triggerKind = typeof triggerPayload?.kind === 'string' ? triggerPayload.kind : 'generic';
-  const customerPayload = customer?.payload as Record<string, unknown> | undefined;
-  const customerName = typeof (customerPayload as any)?.identity?.name === 'string' ? (customerPayload as any).identity.name : 'there';
+function getString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+}
 
-  const suppressionKey = typeof triggerPayload?.suppression_key === 'string'
-    ? triggerPayload.suppression_key
-    : `${triggerKind}:${merchantId}`;
+function getRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : undefined;
+}
+
+function getCategoryLabel(categorySlug: string): string {
+  switch (categorySlug) {
+    case 'dentists':
+      return 'dentistry';
+    case 'salons':
+      return 'salon services';
+    case 'restaurants':
+      return 'restaurant growth';
+    case 'gyms':
+      return 'gym growth';
+    case 'pharmacies':
+      return 'pharmacy outreach';
+    default:
+      return categorySlug;
+  }
+}
+
+export function compose(category: ContextRecord | undefined, merchant: ContextRecord | undefined, trigger: ContextRecord | undefined, customer?: ContextRecord): ComposeResult {
+  const merchantPayload = getRecord(merchant?.payload);
+  const merchantId = getString(merchantPayload?.merchant_id) ?? 'merchant';
+  const merchantIdentity = getRecord(merchantPayload?.identity);
+  const merchantName = getString(merchantIdentity?.name) ?? merchantId;
+  const locality = getString(merchantIdentity?.locality) ?? 'your area';
+  const city = getString(merchantIdentity?.city) ?? 'your city';
+  const categoryPayload = getRecord(category?.payload);
+  const categorySlug = getString(categoryPayload?.slug) ?? 'general';
+  const categoryName = getCategoryLabel(categorySlug);
+  const triggerPayload = getRecord(trigger?.payload);
+  const triggerKind = getString(triggerPayload?.kind) ?? 'generic';
+  const customerPayload = getRecord(customer?.payload);
+  const customerIdentity = getRecord(customerPayload?.identity);
+  const customerName = getString(customerIdentity?.name) ?? 'there';
+  const merchantSignals = Array.isArray(merchantPayload?.signals)
+    ? merchantPayload.signals.filter((signal): signal is string => typeof signal === 'string')
+    : [];
+  const hasHighRiskSignal = merchantSignals.some((signal) => signal.toLowerCase().includes('high_risk') || signal.toLowerCase().includes('adult'));
+
+  const suppressionKey = getString(triggerPayload?.suppression_key) ?? `${triggerKind}:${merchantId}`;
 
   if (triggerKind === 'research_digest') {
+    const topItem = getRecord(triggerPayload?.top_item);
+    const title = getString(topItem?.title) ?? getString(triggerPayload?.title) ?? 'a relevant clinical insight';
+    const source = getString(topItem?.source) ?? getString(triggerPayload?.source) ?? undefined;
+    const trialN = typeof topItem?.trial_n === 'number' ? topItem.trial_n : typeof triggerPayload?.trial_n === 'number' ? triggerPayload.trial_n : undefined;
+    const patientSegment = getString(topItem?.patient_segment) ?? getString(triggerPayload?.patient_segment) ?? (hasHighRiskSignal ? 'high-risk adults' : 'your patient base');
+    const trialText = trialN ? `${trialN.toLocaleString('en-IN')}-patient trial` : 'a recent study';
+    const patientText = patientSegment.replace(/_/g, '-');
+    const sourceSuffix = source ? ` — ${source}` : '';
+
     return {
-      body: `${merchantName} in ${locality}, ${city}, this is a timely ${categoryName} note. JIDA's latest research digest is relevant for your ${categorySlug} practice, and one item is worth a quick look for your next patient outreach.`,
+      body: `${merchantName}, ${title}. One item relevant to ${patientText} — ${trialText} showed ${title.toLowerCase()}. Worth a look (2-min abstract). Want me to pull it + draft a patient-ed WhatsApp you can share?${sourceSuffix}`,
       cta: 'open_ended',
       send_as: 'vera',
       suppression_key: suppressionKey,
-      rationale: 'Merchant-facing research digest with a concrete, category-relevant hook.'
+      rationale: 'Merchant-facing research digest with a concrete clinical hook and a low-friction next step.'
     };
   }
 
