@@ -19,6 +19,14 @@ export class DecisionService {
       const customer = customerId ? this.store.get('customer', customerId) : undefined;
       const result = compose(category, merchant, trigger, customer);
       const triggerKind = (trigger.payload as any)?.kind as string | undefined;
+      const merchantName = (merchant?.payload as any)?.identity?.name as string | undefined;
+      const categorySlug = (category?.payload as any)?.slug as string | undefined;
+      const templateParams = [
+        merchantName || merchantId || 'merchant',
+        categorySlug || 'general',
+        result.body,
+        result.rationale
+      ].filter(Boolean);
 
       const templateName = triggerKind === 'perf_spike'
         ? 'vera_perf_spike_v1'
@@ -33,7 +41,7 @@ export class DecisionService {
         send_as: result.send_as,
         trigger_id: trigger.context_id,
         template_name: templateName,
-        template_params: [result.body],
+        template_params: templateParams,
         body: result.body,
         cta: result.cta,
         suppression_key: result.suppression_key,

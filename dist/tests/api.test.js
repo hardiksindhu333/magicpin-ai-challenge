@@ -71,6 +71,8 @@ test('tick endpoint uses trigger-specific wording for research digests', async (
     assert.match(response.body.actions[0].body, /JIDA|research/i);
     assert.equal(response.body.actions[0].send_as, 'vera');
     assert.equal(response.body.actions[0].template_name, 'vera_research_digest_v1');
+    assert.ok(response.body.actions[0].template_params.some((param) => param.includes("Dr. Meera")));
+    assert.ok(response.body.actions[0].template_params.some((param) => param.includes('dentists')));
 });
 test('tick endpoint uses a performance-specific template for perf spikes', async () => {
     const app = createApp();
