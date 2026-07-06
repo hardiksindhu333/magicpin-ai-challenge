@@ -53,7 +53,7 @@ export class DecisionService {
   }
 
   public async handleReply(conversation_id: string, merchant_id: string, customer_id: string | null, from_role: string, message: string): Promise<ReplyAction> {
-    const lower = message.toLowerCase();
+    const lower = message.toLowerCase().trim();
 
     if (lower.includes('stop') || lower.includes('not interested') || lower.includes('no thanks') || lower.includes('unsubscribe')) {
       return { action: 'end', rationale: 'Merchant explicitly opted out. Closing the conversation gracefully.' };
@@ -63,7 +63,11 @@ export class DecisionService {
       return { action: 'wait', wait_seconds: 14400, rationale: 'Detected a canned auto-reply and backed off to avoid wasting a turn.' };
     }
 
-    if (lower.includes('let\'s do it') || lower.includes('yes please') || lower.includes('ok let\'s') || lower.includes('confirm')) {
+    if (lower.includes('later') || lower.includes('not now') || lower.includes('tomorrow') || lower.includes('give me some time') || lower.includes('can we do this later')) {
+      return { action: 'wait', wait_seconds: 1800, rationale: 'Merchant asked for time, so the bot backs off briefly instead of pushing.' };
+    }
+
+    if (lower.includes('let\'s do it') || lower.includes('yes please') || lower.includes('ok let\'s') || lower.includes('confirm') || lower.includes('i want to join') || lower.includes('join') || lower.includes('get started')) {
       return {
         action: 'send',
         body: `Great. I will move from qualification to the next practical step for ${merchant_id} and keep the follow-up concrete.`,

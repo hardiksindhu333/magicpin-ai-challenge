@@ -22,3 +22,24 @@ test('reply flow advances when merchant commits', async () => {
   assert.equal(result.action, 'send');
   assert.equal(result.cta, 'binary_yes_no');
 });
+
+test('reply flow advances when merchant wants to join', async () => {
+  const service = new DecisionService(new ContextStore());
+  const result = await service.handleReply('conv_1', 'm_001', null, 'merchant', 'I want to join and get started right away.');
+  assert.equal(result.action, 'send');
+  assert.equal(result.cta, 'binary_yes_no');
+});
+
+test('reply flow redirects off-topic GST questions', async () => {
+  const service = new DecisionService(new ContextStore());
+  const result = await service.handleReply('conv_1', 'm_001', null, 'merchant', 'Can you also help me file my GST return?');
+  assert.equal(result.action, 'send');
+  assert.match(result.body ?? '', /GST|tax|accountant|bookkeeper/i);
+});
+
+test('reply flow waits when merchant asks for time', async () => {
+  const service = new DecisionService(new ContextStore());
+  const result = await service.handleReply('conv_1', 'm_001', null, 'merchant', 'Can we do this later today?');
+  assert.equal(result.action, 'wait');
+  assert.equal(result.wait_seconds, 1800);
+});
