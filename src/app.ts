@@ -9,7 +9,10 @@ export function createApp() {
   app.use(express.json());
   app.use('/v1', createVeraRoutes());
 
-  app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      return next(err);
+    }
     console.error(err);
     res.status(500).json({ error: 'internal_server_error' });
   });
