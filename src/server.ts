@@ -1,11 +1,11 @@
 import { createApp } from './app.js';
+import { config } from './config/index.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = createApp();
-const port = Number(process.env.PORT || 3000);
 
-app.listen(port, () => {
-  console.log(`Vera listening on port ${port}`);
+app.listen(config.port, () => {
+  console.log(`Vera listening on port ${config.port}`);
 });
