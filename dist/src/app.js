@@ -6,7 +6,10 @@ export function createApp() {
     const app = express();
     app.use(express.json());
     app.use('/v1', createVeraRoutes());
-    app.use((err, _req, res, _next) => {
+    app.use((err, _req, res, next) => {
+        if (res.headersSent) {
+            return next(err);
+        }
         console.error(err);
         res.status(500).json({ error: 'internal_server_error' });
     });
