@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { config } from '../config/index.js';
 const contextRequestSchema = z.object({
     scope: z.enum(['category', 'merchant', 'customer', 'trigger']),
     context_id: z.string().min(1),
@@ -31,13 +32,13 @@ export function createVeraController(store, decisionService) {
         },
         metadata: (_req, res) => {
             res.json({
-                team_name: 'Team Alpha',
-                team_members: ['Alice', 'Bob'],
-                model: 'claude-opus-4-7',
-                approach: 'single-prompt composer with retrieval over digest items + dispatch by trigger.kind',
-                contact_email: 'team@example.com',
-                version: '1.2.0',
-                submitted_at: '2026-04-26T08:00:00Z'
+                team_name: config.teamName,
+                team_members: config.teamMembers,
+                model: config.model,
+                approach: config.approach,
+                contact_email: config.contactEmail,
+                version: config.version,
+                submitted_at: config.submittedAt
             });
         },
         context: (req, res) => {
@@ -48,7 +49,7 @@ export function createVeraController(store, decisionService) {
             const { scope, context_id, version, payload } = parsed.data;
             const result = store.upsert(scope, context_id, version, payload, parsed.data.delivered_at ?? new Date().toISOString());
             if (!result.accepted) {
-                return res.status(200).json({ accepted: false, reason: 'stale_version', current_version: result.current_version });
+                return res.status(409).json({ accepted: false, reason: 'stale_version', current_version: result.current_version });
             }
             return res.status(200).json({ accepted: true, ack_id: `ack_${context_id}_v${version}`, stored_at: new Date().toISOString() });
         },
