@@ -30,7 +30,7 @@ test('context endpoint stores and rejects stale versions', async () => {
         delivered_at: '2026-04-26T09:45:30Z',
         payload: { merchant_id: 'm_001' }
     });
-    assert.equal(second.status, 200);
+    assert.equal(second.status, 409);
     assert.equal(second.body.accepted, false);
     assert.equal(second.body.reason, 'stale_version');
 });
@@ -59,7 +59,13 @@ test('tick endpoint uses trigger-specific wording for research digests', async (
             source: 'external',
             merchant_id: 'm_001',
             customer_id: null,
-            suppression_key: 'research:dentists:2026-W17'
+            suppression_key: 'research:dentists:2026-W17',
+            top_item: {
+                title: '3-month fluoride recall cuts caries recurrence 38% better than 6-month',
+                source: 'JIDA Oct 2026, p.14',
+                trial_n: 2100,
+                patient_segment: 'high_risk_adults'
+            }
         }
     });
     const response = await request(app).post('/v1/tick').send({
@@ -68,11 +74,14 @@ test('tick endpoint uses trigger-specific wording for research digests', async (
     });
     assert.equal(response.status, 200);
     assert.equal(response.body.actions.length, 1);
-    assert.match(response.body.actions[0].body, /JIDA|research/i);
-    assert.equal(response.body.actions[0].send_as, 'vera');
-    assert.equal(response.body.actions[0].template_name, 'vera_research_digest_v1');
-    assert.ok(response.body.actions[0].template_params.some((param) => param.includes("Dr. Meera")));
-    assert.ok(response.body.actions[0].template_params.some((param) => param.includes('dentists')));
+    const action = response.body.actions[0];
+    assert.match(action.body, /JIDA|research/i);
+    assert.match(action.body, /2,100|2,100-patient|high-risk/i);
+    assert.match(action.body, /2-min|abstract|patient-ed|share/i);
+    assert.equal(action.send_as, 'vera');
+    assert.equal(action.template_name, 'vera_research_digest_v1');
+    assert.ok(action.template_params.some((param) => param.includes("Dr. Meera")));
+    assert.ok(action.template_params.some((param) => param.includes('dentists')));
 });
 test('tick endpoint uses a performance-specific template for perf spikes', async () => {
     const app = createApp();
@@ -110,5 +119,5 @@ test('tick endpoint uses a performance-specific template for perf spikes', async
     assert.equal(response.body.actions.length, 1);
     assert.match(response.body.actions[0].body, /performance|views|traffic/i);
     assert.equal(response.body.actions[0].template_name, 'vera_perf_spike_v1');
-    assert.equal(response.body.actions[0].cta, 'open_ended');
+    assert.equal(response.body.actions[0].cta, 'binary_yes_no');
 });
