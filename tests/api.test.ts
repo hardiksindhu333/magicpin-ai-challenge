@@ -37,7 +37,7 @@ test('context endpoint stores and rejects stale versions', async () => {
     payload: { merchant_id: 'm_001' }
   });
 
-  assert.equal(second.status, 200);
+  assert.equal(second.status, 409);
   assert.equal(second.body.accepted, false);
   assert.equal(second.body.reason, 'stale_version');
 });
@@ -138,5 +138,5 @@ test('tick endpoint uses a performance-specific template for perf spikes', async
   assert.equal(response.body.actions.length, 1);
   assert.match(response.body.actions[0].body, /performance|views|traffic/i);
   assert.equal(response.body.actions[0].template_name, 'vera_perf_spike_v1');
-  assert.equal(response.body.actions[0].cta, 'open_ended');
+  assert.equal(response.body.actions[0].cta, 'binary_yes_no');
 });
