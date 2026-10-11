@@ -11,6 +11,6 @@ test('customer trigger composes a customer-facing recall message', () => {
   );
 
   assert.equal(result.send_as, 'merchant_on_behalf');
-  assert.equal(result.cta, 'binary_yes_no');
+  assert.equal(result.cta, 'multi_choice_slot');
   assert.match(result.body, /Priya/);
 });
